@@ -17,20 +17,20 @@ System_Boundary(mp, "Маркетплейс") {
   Container(catalog, "Catalog Service", "Python, FastAPI", "Товары, категории, цены и остатки; управление каталогом продавцами")
   Container(feed, "Feed Service", "Python, FastAPI", "Персонализированная лента на основе действий пользователя и событий каталога")
   Container(order, "Order Service", "Python, FastAPI", "Оформление заказов и их жизненный цикл", $tags="implemented")
-  Container(payment, "Payment Service", "Python, FastAPI", "Проведение платежей, возвраты, учёт транзакций")
+  Container(payment, "Payment Service", "Python, FastAPI", "Проведение платежей и учёт транзакций")
   Container(notification, "Notification Service", "Python, FastAPI", "Отправка уведомлений о статусах заказов")
 
   ContainerDb(userDb, "User DB", "PostgreSQL", "Пользователи, учётные данные, роли")
   ContainerDb(catalogDb, "Catalog DB", "PostgreSQL", "Товары, категории, цены, остатки")
   ContainerDb(feedDb, "Feed DB", "Redis", "Профили интересов, предрассчитанные ленты, read-модель товаров")
   ContainerDb(orderDb, "Order DB", "PostgreSQL", "Заказы, позиции, история статусов")
-  ContainerDb(paymentDb, "Payment DB", "PostgreSQL", "Платежи, транзакции, возвраты")
+  ContainerDb(paymentDb, "Payment DB", "PostgreSQL", "Платежи и транзакции провайдера")
   ContainerDb(notificationDb, "Notification DB", "PostgreSQL", "Шаблоны и журнал отправленных уведомлений")
 
   ContainerQueue(broker, "Message Broker", "Kafka", "Доменные события: заказы, платежи, каталог")
 }
 
-System_Ext(psp, "Платёжный провайдер", "Эквайринг: списание и возврат средств")
+System_Ext(psp, "Платёжный провайдер", "Эквайринг: приём оплаты картой")
 System_Ext(messaging, "Email / SMS / Push провайдер", "Доставка уведомлений пользователям")
 
 ' --- пользователи ---
@@ -68,7 +68,7 @@ Rel(feed, broker, "Читает ProductUpdated, OrderStatusChanged", "async")
 Rel(notification, broker, "Читает OrderStatusChanged", "async")
 
 ' --- внешние системы ---
-Rel(payment, psp, "Создание платежа, возврат средств", "HTTPS")
+Rel(payment, psp, "Создание платежа", "HTTPS")
 Rel(psp, payment, "Webhook с результатом платежа", "HTTPS")
 Rel(notification, messaging, "Отправка уведомлений", "HTTPS")
 
