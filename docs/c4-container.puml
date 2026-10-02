@@ -1,0 +1,75 @@
+@startuml c4-container
+!include <C4/C4_Container>
+
+title Маркетплейс — C4 Container diagram
+
+AddElementTag("implemented", $borderColor="#d73027", $legendText="реализован в репозитории (health-check)")
+
+Person(buyer, "Покупатель", "Просматривает ленту товаров, оформляет и оплачивает заказы")
+Person(seller, "Продавец", "Управляет своим каталогом товаров и видит заказы")
+
+System_Boundary(mp, "Маркетплейс") {
+  Container(web, "Web App", "SPA", "Веб-интерфейс для покупателей и продавцов")
+  Container(mobile, "Mobile App", "iOS / Android", "Мобильное приложение для покупателей")
+  Container(gw, "API Gateway", "Reverse proxy", "Единая точка входа: маршрутизация, проверка JWT, rate limiting")
+
+  Container(user, "User Service", "Python, FastAPI", "Регистрация, аутентификация, профили и роли покупателей и продавцов")
+  Container(catalog, "Catalog Service", "Python, FastAPI", "Товары, категории, цены и остатки; управление каталогом продавцами")
+  Container(feed, "Feed Service", "Python, FastAPI", "Персонализированная лента на основе действий пользователя и событий каталога")
+  Container(order, "Order Service", "Python, FastAPI", "Оформление заказов и их жизненный цикл", $tags="implemented")
+  Container(payment, "Payment Service", "Python, FastAPI", "Проведение платежей, возвраты, учёт транзакций")
+  Container(notification, "Notification Service", "Python, FastAPI", "Отправка уведомлений о статусах заказов")
+
+  ContainerDb(userDb, "User DB", "PostgreSQL", "Пользователи, учётные данные, роли")
+  ContainerDb(catalogDb, "Catalog DB", "PostgreSQL", "Товары, категории, цены, остатки")
+  ContainerDb(feedDb, "Feed DB", "Redis", "Профили интересов, предрассчитанные ленты, read-модель товаров")
+  ContainerDb(orderDb, "Order DB", "PostgreSQL", "Заказы, позиции, история статусов")
+  ContainerDb(paymentDb, "Payment DB", "PostgreSQL", "Платежи, транзакции, возвраты")
+  ContainerDb(notificationDb, "Notification DB", "PostgreSQL", "Шаблоны и журнал отправленных уведомлений")
+
+  ContainerQueue(broker, "Message Broker", "Kafka", "Доменные события: заказы, платежи, каталог")
+}
+
+System_Ext(psp, "Платёжный провайдер", "Эквайринг: списание и возврат средств")
+System_Ext(messaging, "Email / SMS / Push провайдер", "Доставка уведомлений пользователям")
+
+' --- пользователи ---
+Rel(buyer, web, "Смотрит ленту, оформляет и оплачивает заказы", "HTTPS")
+Rel(buyer, mobile, "Смотрит ленту, оформляет и оплачивает заказы")
+Rel(seller, web, "Управляет товарами, смотрит заказы", "HTTPS")
+Rel(web, gw, "API-запросы", "HTTPS/JSON")
+Rel(mobile, gw, "API-запросы", "HTTPS/JSON")
+
+' --- синхронные вызовы через шлюз ---
+Rel(gw, user, "Аутентификация, профили", "REST")
+Rel(gw, catalog, "CRUD товаров, поиск", "REST")
+Rel(gw, feed, "Получение ленты, события просмотров", "REST")
+Rel(gw, order, "Создание и просмотр заказов", "REST")
+Rel(gw, payment, "Оплата заказа, статус платежа", "REST")
+
+' --- синхронные межсервисные вызовы ---
+Rel(order, catalog, "Проверяет цену и наличие", "REST, sync")
+Rel(notification, user, "Получает контакты пользователя", "REST, sync")
+
+' --- данные: у каждого сервиса своя БД ---
+Rel_D(user, userDb, "Читает/пишет", "SQL")
+Rel_D(catalog, catalogDb, "Читает/пишет", "SQL")
+Rel_D(feed, feedDb, "Читает/пишет", "Redis protocol")
+Rel_D(order, orderDb, "Читает/пишет", "SQL")
+Rel_D(payment, paymentDb, "Читает/пишет", "SQL")
+Rel_D(notification, notificationDb, "Читает/пишет", "SQL")
+
+' --- асинхронное взаимодействие через брокер ---
+Rel(catalog, broker, "Публикует ProductUpdated; читает OrderCreated/OrderCancelled (резерв остатков)", "async")
+Rel(order, broker, "Публикует OrderCreated, OrderStatusChanged; читает PaymentSucceeded/Failed", "async")
+Rel(payment, broker, "Читает OrderCreated; публикует PaymentSucceeded/Failed", "async")
+Rel(feed, broker, "Читает события каталога и заказов", "async")
+Rel(notification, broker, "Читает OrderStatusChanged", "async")
+
+' --- внешние системы ---
+Rel(payment, psp, "Создание платежа, возврат средств", "HTTPS")
+Rel(psp, payment, "Webhook с результатом платежа", "HTTPS")
+Rel(notification, messaging, "Отправка уведомлений", "HTTPS")
+
+SHOW_LEGEND()
+@enduml

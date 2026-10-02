@@ -1,0 +1,7 @@
+services:
+  order-service:
+    build: ./services/order-service
+    image: marketplace/order-service:0.1.0
+    container_name: order-service
+    ports:
+      - "8000:8000"
