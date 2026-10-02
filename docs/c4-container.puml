@@ -6,7 +6,7 @@ title Маркетплейс — C4 Container diagram
 AddElementTag("implemented", $borderColor="#d73027", $legendText="реализован в репозитории (health-check)")
 
 Person(buyer, "Покупатель", "Просматривает ленту товаров, оформляет и оплачивает заказы")
-Person(seller, "Продавец", "Управляет своим каталогом товаров и видит заказы")
+Person(seller, "Продавец", "Управляет своим каталогом товаров и обрабатывает заказы")
 
 System_Boundary(mp, "Маркетплейс") {
   Container(web, "Web App", "SPA", "Веб-интерфейс для покупателей и продавцов")
@@ -36,7 +36,8 @@ System_Ext(messaging, "Email / SMS / Push провайдер", "Доставка
 ' --- пользователи ---
 Rel(buyer, web, "Смотрит ленту, оформляет и оплачивает заказы", "HTTPS")
 Rel(buyer, mobile, "Смотрит ленту, оформляет и оплачивает заказы")
-Rel(seller, web, "Управляет товарами, смотрит заказы", "HTTPS")
+Rel(seller, web, "Управляет товарами и заказами", "HTTPS")
+Rel(buyer, psp, "Вводит данные карты на платёжной странице", "HTTPS")
 Rel(web, gw, "API-запросы", "HTTPS/JSON")
 Rel(mobile, gw, "API-запросы", "HTTPS/JSON")
 
@@ -44,11 +45,11 @@ Rel(mobile, gw, "API-запросы", "HTTPS/JSON")
 Rel(gw, user, "Аутентификация, профили", "REST")
 Rel(gw, catalog, "CRUD товаров, поиск", "REST")
 Rel(gw, feed, "Получение ленты, события просмотров", "REST")
-Rel(gw, order, "Создание и просмотр заказов", "REST")
+Rel(gw, order, "Оформление заказов, просмотр, смена статуса", "REST")
 Rel(gw, payment, "Оплата заказа, статус платежа", "REST")
 
 ' --- синхронные межсервисные вызовы ---
-Rel(order, catalog, "Проверяет цену и наличие", "REST, sync")
+Rel(order, catalog, "Проверяет цену, резервирует товар", "REST, sync")
 Rel(notification, user, "Получает контакты пользователя", "REST, sync")
 
 ' --- данные: у каждого сервиса своя БД ---
@@ -60,10 +61,10 @@ Rel_D(payment, paymentDb, "Читает/пишет", "SQL")
 Rel_D(notification, notificationDb, "Читает/пишет", "SQL")
 
 ' --- асинхронное взаимодействие через брокер ---
-Rel(catalog, broker, "Публикует ProductUpdated; читает OrderCreated/OrderCancelled (резерв остатков)", "async")
-Rel(order, broker, "Публикует OrderCreated, OrderStatusChanged; читает PaymentSucceeded/Failed", "async")
-Rel(payment, broker, "Читает OrderCreated; публикует PaymentSucceeded/Failed", "async")
-Rel(feed, broker, "Читает события каталога и заказов", "async")
+Rel(catalog, broker, "Публикует ProductUpdated; читает OrderStatusChanged", "async")
+Rel(order, broker, "Публикует OrderCreated, OrderStatusChanged; читает PaymentSucceeded", "async")
+Rel(payment, broker, "Читает OrderCreated; публикует PaymentSucceeded", "async")
+Rel(feed, broker, "Читает ProductUpdated, OrderStatusChanged", "async")
 Rel(notification, broker, "Читает OrderStatusChanged", "async")
 
 ' --- внешние системы ---
