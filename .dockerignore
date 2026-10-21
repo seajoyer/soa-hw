@@ -1,0 +1,7 @@
+*
+!app
+!codegen
+!openapi
+!requirements.txt
+app/generated
+**/__pycache__
